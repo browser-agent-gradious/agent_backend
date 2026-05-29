@@ -1,0 +1,56 @@
+# Byte-compiled / cache
+__pycache__
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+virtual_packages/
+
+# Environment / secret files
+.env
+.env.*
+
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Broswer data
+agent_profile/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.lightning_studio
+.cursor-server
+.vscode-server
+.windsurf-server
+
+# Tooling caches
+.mypy_cache/
+.tox/
+.cache/
+
+# Logs
+*.log
+debug_logs/
+
+# Photos
+*.jpg
+*.jpeg
+*.png
+
+# Zip files
+*.zip
