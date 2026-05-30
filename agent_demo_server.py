@@ -55,9 +55,9 @@ log = logging.getLogger("agent_demo")
 GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
 STT_MODEL     = "whisper-large-v3"
 TTS_MODEL     = "canopylabs/orpheus-v1-english"
-TTS_VOICE     = "autumn"          # Options: tara, leah, jessica, lily, zac, austin, eric, troy
+TTS_VOICE     = "autumn"           # Options: tara, leah, jessica, lily, zac, austin, eric, troy
 TTS_FORMAT    = "wav"              # Groq Orpheus supports: wav (default)
-STEP_DELAY    = 0.6                # seconds between each scripted action (makes it visible)
+STEP_DELAY    = 1.0                # seconds between each scripted action (makes it visible)
 GROQ_TIMEOUT  = 60                 # seconds for API calls
 
 # ── FastAPI app ─────────────────────────────────────────────────────────────
@@ -83,9 +83,9 @@ async def send(ws: WebSocket, payload: dict):
     await ws.send_text(json.dumps(payload))
 
 
-async def step_delay():
+async def step_delay(step_delay: float = STEP_DELAY):
     """Pause between scripted actions so the frontend has time to render each step."""
-    await asyncio.sleep(STEP_DELAY)
+    await asyncio.sleep(step_delay)
 
 
 def decode_base64_audio(b64_string: str, mime_type: str) -> bytes:
@@ -182,9 +182,9 @@ def run_tts(text: str) -> bytes:
         return b""
 
 
-# ── Scripted demo action sequence ───────────────────────────────────────────
+# ── Scripted demo action sequence for leaves page ───────────────────────────────────────────
 
-async def run_demo_sequence(ws: WebSocket, transcript: str):
+async def run_leave_demo_sequence(ws: WebSocket, transcript: str):
     """
     Plays back the hardcoded "apply sick leave for tomorrow" demo sequence.
 
@@ -231,8 +231,11 @@ async def run_demo_sequence(ws: WebSocket, transcript: str):
 
     await send(ws, {
         "type":    "action",
-        "action":  "open_modal",
-        "payload": {},
+        "action":  "click_dot",
+        "payload": {
+            "label":    "Apply for Leave",
+            "selector": 'button[type="button"]',
+        },
     })
     await step_delay()
 
@@ -242,8 +245,6 @@ async def run_demo_sequence(ws: WebSocket, transcript: str):
         "type":    "action",
         "action":  "click_dot",
         "payload": {
-            "x":        200,
-            "y":        300,
             "label":    "Leave Type",
             "selector": "select[name=type]",
         },
@@ -282,24 +283,22 @@ async def run_demo_sequence(ws: WebSocket, transcript: str):
     await step_delay()
 
     # ── Step 7: Click Submit ─────────────────────────────────────────────────
-    # await send(ws, {
-    #     "type":    "action",
-    #     "action":  "click_dot",
-    #     "payload": {
-    #         "x":        400,
-    #         "y":        500,
-    #         "label":    "Submit",
-    #         "selector": 'button[type="submit"]',
-    #     },
-    # })
-    # await asyncio.sleep(0.35)
-
     await send(ws, {
         "type":    "action",
-        "action":  "click",
-        "payload": { "selector": 'button[type="submit"]' },
+        "action":  "click_dot",
+        "payload": {
+            "label":    "Submit",
+            "selector": 'button[type="submit"]',
+        },
     })
-    await step_delay()
+    await asyncio.sleep(0.35)
+
+    # await send(ws, {
+    #     "type":    "action",
+    #     "action":  "click",
+    #     "payload": { "selector": 'button[type="submit"]' },
+    # })
+    # await step_delay()
 
     # ── Step 8: TTS final response ───────────────────────────────────────────
     final_text = (
@@ -328,6 +327,200 @@ async def run_demo_sequence(ws: WebSocket, transcript: str):
         await send(ws, {
             "type": "result",
             "text": "Done! Sick leave for tomorrow submitted successfully.",
+        })
+
+# ── Scripted demo action sequence for attendance page ───────────────────────────────────────────
+
+async def run_attendance_demo_sequence(ws: WebSocket, transcript: str):
+    """
+    Plays back the hardcoded "Show me my attendance for april." demo sequence.
+
+    This simulates what a real LangGraph agent would do after deciding
+    the intent from the transcript. Each message mirrors the format that
+    the real agent backend will produce, so the frontend can be validated
+    without the full LLM pipeline.
+
+    Message types:
+      ack    → immediately show transcript in the UI
+      step   → agent "thinking" log (purple in UI)
+      action → execute a frontend action
+      audio  → Base64 WAV audio to play + final text
+    """
+
+    # ── Step 0: Acknowledge transcript ──────────────────────────────────────
+    await send(ws, {
+        "type":       "ack",
+        "text":       f'You said: "{transcript}"',
+        "transcript": transcript,
+    })
+    await step_delay()
+
+    # ── Step 1: Navigate to /attendance ─────────────────────────────────────────
+    await send(ws, {
+        "type": "step",
+        "text": "Navigating to the Attendance page…",
+    })
+    await step_delay()
+
+    await send(ws, {
+        "type":    "action",
+        "action":  "navigate",
+        "payload": { "target": "/attendance" },
+    })
+    await step_delay()
+
+    # ── Step 2: Open the attendance month dropdown ─────────────────────────────
+    # First show the red dot on the Leave Type dropdown, then fill it
+    await send(ws, {
+        "type": "step",
+        "text": "Selecting the attendance month…",
+    })
+    await step_delay()
+    
+    await send(ws, {
+        "type":    "action",
+        "action":  "click_dot",
+        "payload": {
+            "label":    "Attendance month dropdown",
+            "selector": 'button[id="attendance-month-dropdown-trigger"]',
+        },
+    })
+    await step_delay()
+
+    # ── Step 3: Select the attendance month  ──────────────────────────────────────────────
+    await send(ws, {
+        "type":    "action",
+        "action":  "click_dot",
+        "payload": {
+            "label":    "April 2026",
+            "selector": 'li[id="attendance-month-dropdown-option-april"]',
+        },
+    })
+    await step_delay()
+
+    # ── Step 8: TTS final response ───────────────────────────────────────────
+    final_text = (
+        "[cheerful] Done! Here is your attendance information for April 2026."
+    )
+    await send(ws, {
+        "type": "step",
+        "text": "Generating voice response…",
+    })
+
+    # Run TTS in a thread pool so we don't block the event loop
+    audio_bytes = await asyncio.get_event_loop().run_in_executor(
+        None, run_tts, final_text
+    )
+
+    if audio_bytes:
+        await send(ws, {
+            "type":     "audio",
+            "audio":    encode_audio_to_base64(audio_bytes),
+            "mimeType": "audio/wav",
+            "text":     "Done! Here is your attendance information for April 2026.",
+        })
+    else:
+        # TTS failed — send text-only result as fallback
+        await send(ws, {
+            "type": "result",
+            "text": "Done! Here is your attendance information for April 2026.",
+        })
+
+# ── Scripted demo action sequence for payroll page ───────────────────────────────────────────
+
+async def run_payroll_demo_sequence(ws: WebSocket, transcript: str):
+    """
+    Plays back the hardcoded "Show me my payroll for march." demo sequence.
+
+    This simulates what a real LangGraph agent would do after deciding
+    the intent from the transcript. Each message mirrors the format that
+    the real agent backend will produce, so the frontend can be validated
+    without the full LLM pipeline.
+
+    Message types:
+      ack    → immediately show transcript in the UI
+      step   → agent "thinking" log (purple in UI)
+      action → execute a frontend action
+      audio  → Base64 WAV audio to play + final text
+    """
+
+    # ── Step 0: Acknowledge transcript ──────────────────────────────────────
+    await send(ws, {
+        "type":       "ack",
+        "text":       f'You said: "{transcript}"',
+        "transcript": transcript,
+    })
+    await step_delay()
+
+    # ── Step 1: Navigate to /payroll ─────────────────────────────────────────
+    await send(ws, {
+        "type": "step",
+        "text": "Navigating to the Payroll page…",
+    })
+    await step_delay()
+
+    await send(ws, {
+        "type":    "action",
+        "action":  "navigate",
+        "payload": { "target": "/payroll" },
+    })
+    await step_delay()
+
+    # ── Step 2: Open the payroll month dropdown ─────────────────────────────
+    # First show the red dot on the Leave Type dropdown, then fill it
+    await send(ws, {
+        "type": "step",
+        "text": "Selecting the payroll month…",
+    })
+    await step_delay()
+    
+    await send(ws, {
+        "type":    "action",
+        "action":  "click_dot",
+        "payload": {
+            "label":    "Payroll month dropdown",
+            "selector": 'button[id="payroll-month-dropdown-trigger"]',
+        },
+    })
+    await step_delay()
+
+    # ── Step 3: Select the payroll month  ──────────────────────────────────────────────
+    await send(ws, {
+        "type":    "action",
+        "action":  "click_dot",
+        "payload": {
+            "label":    "March 2026",
+            "selector": 'li[id="payroll-month-dropdown-option-march"]',
+        },
+    })
+    await step_delay()
+
+    # ── Step 8: TTS final response ───────────────────────────────────────────
+    final_text = (
+        "[cheerful] Done! Here is your payroll information for March 2026."
+    )
+    await send(ws, {
+        "type": "step",
+        "text": "Generating voice response…",
+    })
+
+    # Run TTS in a thread pool so we don't block the event loop
+    audio_bytes = await asyncio.get_event_loop().run_in_executor(
+        None, run_tts, final_text
+    )
+
+    if audio_bytes:
+        await send(ws, {
+            "type":     "audio",
+            "audio":    encode_audio_to_base64(audio_bytes),
+            "mimeType": "audio/wav",
+            "text":     "Done! Here is your payroll information for March 2026.",
+        })
+    else:
+        # TTS failed — send text-only result as fallback
+        await send(ws, {
+            "type": "result",
+            "text": "Done! Here is your payroll information for March 2026.",
         })
 
 
@@ -390,8 +583,15 @@ async def agent_ws(ws: WebSocket):
                     None, run_stt, audio_bytes, mime_type
                 )
 
-                # Run the demo action sequence (always the same regardless of transcript)
-                await run_demo_sequence(ws, transcript)
+                # Run the demo action sequence
+                if "attendance" in transcript.lower():
+                    await run_attendance_demo_sequence(ws, transcript)
+                elif "payroll" in transcript.lower():
+                    await run_payroll_demo_sequence(ws, transcript)
+                elif "leave" in transcript.lower() or "sick" in transcript.lower():
+                    await run_leave_demo_sequence(ws, transcript)
+                else:
+                    await run_attendance_demo_sequence(ws, transcript)
 
             else:
                 await send(ws, {
