@@ -4,29 +4,30 @@ agent_demo_server.py
 Demo FastAPI WebSocket server for the HR Portal voice agent.
 
 PURPOSE
-  This is a hardcoded demo — it does NOT run an LLM or make real decisions.
-  When audio arrives, it:
-    1. Runs STT  (Groq whisper-large-v3) → gets transcript
-    2. Plays back the pre-scripted "apply sick leave" action sequence
-    3. Runs TTS  (Groq canopylabs/orpheus-v1-english) on the final text
-    4. Sends the TTS audio back as Base64 JSON
+    This is a hardcoded demo — it does NOT run an LLM or make real decisions.
 
-  Use this to verify that all frontend actions work correctly before
-  wiring up the real LangGraph agent.
+    When audio arrives, it:
+        1. Runs STT  (Groq whisper-large-v3) → gets transcript
+        2. Plays back the pre-scripted "apply sick leave" action sequence
+        3. Runs TTS  (Groq canopylabs/orpheus-v1-english) on the final text
+        4. Sends the TTS audio back as Base64 JSON
+
+    Use this to verify that all frontend actions work correctly before
+    wiring up the real LangGraph agent.
 
 SETUP
-  pip install fastapi uvicorn groq python-dotenv
+    pip install fastapi uvicorn groq python-dotenv
 
-  Create a .env file (or export env vars):
-    GROQ_API_KEY=gsk_...
+    Create a .env file (or export env vars):
+        GROQ_API_KEY=gsk_...
 
 RUN
-  python agent_demo_server.py
-  # Server starts on http://localhost:8000
-  # WS endpoint: ws://localhost:8000/ws/agent
+    python agent_demo_server.py
+    # Server starts on http://localhost:8000
+    # WS endpoint: ws://localhost:8000/ws/agent
 
 FRONTEND .env
-  VITE_AGENT_WS_URL=ws://localhost:8000/ws/agent
+    VITE_AGENT_WS_URL=ws://localhost:8000/ws/agent
 """
 
 import asyncio
@@ -234,7 +235,7 @@ async def run_leave_demo_sequence(ws: WebSocket, transcript: str):
         "action":  "click_dot",
         "payload": {
             "label":    "Apply for Leave",
-            "selector": 'button[type="button"]',
+            "selector": 'button[id="apply-leave-button"]',
         },
     })
     await step_delay()
@@ -246,15 +247,27 @@ async def run_leave_demo_sequence(ws: WebSocket, transcript: str):
         "action":  "click_dot",
         "payload": {
             "label":    "Leave Type",
-            "selector": "select[name=type]",
+            "selector": 'button[id="leave-type-dropdown-trigger"]',
         },
     })
-    await asyncio.sleep(0.35)   # let the dot appear before filling
+    await step_delay()   # let the dot appear before filling
 
+    # Selecting leave type
     await send(ws, {
         "type":    "action",
-        "action":  "fill_form",
-        "payload": { "field": "type", "value": "Sick Leave" },
+        "action":  "click_dot",
+        "payload": {
+            "label":    "Sick Leave",
+            "selector": 'li[id="leave-type-dropdown-option-sick"]',
+        },
+    })
+    await step_delay()
+
+    # Closing the dropdown (clicking the trigger again)
+    await send(ws, {
+        "type":    "action",
+        "action":  "click",
+        "payload": { "selector": 'button[id="leave-type-dropdown-trigger"]' },
     })
     await step_delay()
 
